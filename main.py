@@ -1,6 +1,6 @@
 import os
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.llms.base import LLM
 from langchain.chains import RetrievalQA
@@ -34,9 +34,12 @@ class CustomGemma3LLM(LLM):
     def _call(self, prompt, stop=None, **kwargs):
         input_ids = tokenizer.encode(prompt, return_tensors="pt")
         input_ids = input_ids.to(model.device)
+        # attention_maskを明示的に作成
+        attention_mask = (input_ids != tokenizer.eos_token_id).long()
         with torch.no_grad():
             output = model.generate(
                 input_ids,
+                attention_mask=attention_mask,
                 max_new_tokens=256,
                 do_sample=True,
                 temperature=0.7,
@@ -65,5 +68,5 @@ if __name__ == "__main__":
         query = input("Q: ")
         if query.strip().lower() in ["exit", "quit"]:
             break
-        result = qa.run(query)
-        print("A:", result)
+        result = qa.invoke({"query": query})
+        print("A:", result["result"] if isinstance(result, dict) and "result" in result else result)
